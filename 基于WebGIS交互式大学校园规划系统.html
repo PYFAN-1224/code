@@ -1,0 +1,912 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>基于WebGIS交互式大学校园规划系统</title>
+
+  <script src="https://js.arcgis.com/calcite-components/1.2.0/calcite.esm.js" type="module"></script>
+  <link rel="stylesheet" href="https://js.arcgis.com/calcite-components/1.2.0/calcite.css" />
+
+  <script src="https://js.arcgis.com/4.26/"></script>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.26/esri/themes/light/main.css" />
+
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+
+    body {
+      display: flex;
+    }
+
+    calcite-loader {
+      align-self: center;
+      justify-self: center;
+    }
+
+    #header-title {
+      margin-left: 1rem;
+      margin-right: 1rem;
+    }
+
+    #info-content {
+      padding: 0.75rem;
+    }
+
+    calcite-rating {
+      margin-top: 0.25rem;
+    }
+  </style>
+  <script>
+    require([
+
+      "esri/Map",
+      "esri/WebMap",
+      "esri/views/MapView",
+      "esri/WebScene",
+      "esri/views/SceneView",
+      "esri/widgets/Bookmarks",
+      "esri/widgets/BasemapGallery",
+      "esri/widgets/LayerList",
+      "esri/widgets/Legend",
+      "esri/widgets/Print",
+      "esri/layers/GraphicsLayer",
+      "esri/widgets/Sketch/SketchViewModel",
+      "esri/widgets/Expand",
+      "esri/layers/support/LabelClass",
+      "esri/renderers/SimpleRenderer",
+      "esri/symbols/PointSymbol3D",
+      "esri/symbols/IconSymbol3DLayer"
+    ], (
+
+      Map,
+      WebMap,
+      MapView,
+      WebScene,
+      SceneView,
+      Bookmarks,
+      BasemapGallery,
+      LayerList,
+      Legend,
+      Print,
+      GraphicsLayer,
+      SketchViewModel,
+      Expand,
+      LabelClass,
+      SimpleRenderer,
+      PointSymbol3D,
+      IconSymbol3DLayer
+    ) => {
+      
+      //加载场景
+      const map = new WebScene({
+        portalItem: {
+          // autocasts as new PortalItem()
+          id: "798f3eba9a0e467aa1f5f16bdc00603e"
+        }
+      });
+      //定义场景控件
+      const view = new SceneView({
+        container: "viewDiv",
+        map: map
+      });
+      //定义图形图层
+      const graphicsLayer = new GraphicsLayer({
+        elevationInfo: {
+          mode: "on-the-ground"
+        }
+      });
+      view.map.add(graphicsLayer);
+      //
+      view.ui.move("zoom", "top-left");
+      const basemaps = new BasemapGallery({
+        view,
+        container: "basemaps-container"
+      });
+      const bookmarks = new Bookmarks({
+        view,
+        container: "bookmarks-container"
+      });
+      const layerList = new LayerList({
+        view,
+        selectionEnabled: true,
+        container: "layers-container"
+      });
+      const legend = new Legend({
+        view,
+        container: "legend-container"
+      });
+      const print = new Print({
+        view,
+        container: "print-container"
+      });
+      //
+      //定义功能按钮
+      //地面按钮
+      const groundsurBtn = document.getElementById("groundsur");
+      const lawnBtn = document.getElementById("lawn");
+      const beachBtn = document.getElementById("beach");
+      const waterBtn = document.getElementById("water");
+      //道路按钮
+      const streetBtn = document.getElementById("street");
+      const walkingpathBtn = document.getElementById("walkingpath");
+      //建筑按钮
+      const academicbuildingBtn = document.getElementById("academicbuilding");
+      const libraryBtn = document.getElementById("library");
+      const gymnasiumBtn = document.getElementById("gymnasium");
+      const dormitoryBtn = document.getElementById("dormitory");
+      //设施图标按钮
+      const busBtn = document.getElementById("bus");
+      const shoppingBtn = document.getElementById("shopping");
+      const hospitalBtn = document.getElementById("hospital");
+      const parkingBtn = document.getElementById("parking");
+      const restaurantBtn = document.getElementById("restaurant");
+      const restroomBtn = document.getElementById("restroom");
+      const landmarkBtn = document.getElementById("landmark");
+      const sportBtn = document.getElementById("sport");
+      //树木按钮
+      const tree1Btn = document.getElementById("tree1");
+      const tree2Btn = document.getElementById("tree2");
+      const tree3Btn = document.getElementById("tree3");
+      const tree4Btn = document.getElementById("tree4");
+      const tree5Btn = document.getElementById("tree5");
+      const tree6Btn = document.getElementById("tree6");
+      const tree7Btn = document.getElementById("tree7");
+      const tree8Btn = document.getElementById("tree8");
+      //交通工具按钮
+      const car1Btn = document.getElementById("car1");
+      const car2Btn = document.getElementById("car2");
+      const car3Btn = document.getElementById("car3");
+      const car4Btn = document.getElementById("car4");
+      const car5Btn = document.getElementById("car5");
+      const car6Btn = document.getElementById("car6");
+      //加载地图完毕后
+      map.when(() => {
+        //获取map的portalItem信息
+        const {
+          title,
+          description,
+          thumbnailUrl,
+          avgRating
+        } = map.portalItem;
+        //document.querySelector("#header-title").textContent = title;
+        document.querySelector("#header-title").textContent = "交互式校园规划系统";
+        document.querySelector("#item-description").innerHTML = description;
+        document.querySelector("#item-thumbnail").src = thumbnailUrl;
+        document.querySelector("#item-rating").value = avgRating;
+        let activeWidget;
+        const handleActionBarClick = ({
+          target
+        }) => {
+          if (target.tagName !== "CALCITE-ACTION") {
+            return;
+          }
+          if (activeWidget) {
+            document.querySelector(`[data-action-id=${activeWidget}]`).active = false;
+            document.querySelector(`[data-panel-id=${activeWidget}]`).hidden = true;
+          }
+          const nextWidget = target.dataset.actionId;
+          if (nextWidget !== activeWidget) {
+            document.querySelector(`[data-action-id=${nextWidget}]`).active = true;
+            document.querySelector(`[data-panel-id=${nextWidget}]`).hidden = false;
+            activeWidget = nextWidget;
+          } else {
+            activeWidget = null;
+          }
+        };
+        document.querySelector("calcite-action-bar").addEventListener("click", handleActionBarClick);
+        let actionBarExpanded = false;
+        document.addEventListener("calciteActionBarToggle", event => {
+          actionBarExpanded = !actionBarExpanded;
+          view.padding = {
+            left: actionBarExpanded ? 150 : 45
+          };
+        });
+        document.querySelector("calcite-shell").hidden = false;
+        document.querySelector("calcite-loader").hidden = true;
+      });
+      //绘图
+      const sketchVM = new SketchViewModel({
+        //绘制符号到graphicsLayer上
+        layer: graphicsLayer,
+        view: view,
+        snappingOptions: {
+          enabled: true
+        },
+        tooltipOptions: {
+          enabled: true
+        },
+        labelOptions: {
+          enabled: true
+        },
+        defaultUpdateOptions: {
+          tool: "reshape"
+        }
+      });
+      //1.地表
+      //1.1地面按钮单击事件
+      groundsurBtn.addEventListener("click", () => {
+        // SketchViewModel,草图工具的绘图符号类型只有三种：pointSymbol、polylineSymbol、polygonSymbol，对每一种绘图符号，需要再指定具体的绘制符号。
+        // 如pointSymbol类型有SimpleMarkerSymbol、PointSymbol3D、TextSymbol、CIMSymbol、WebStyleSymbol五种。
+        // polylineSymbol类型有SimpleLineSymbol、LineSymbol3D、CIMSymbol三种
+        // polygonSymbol类型有SimpleFillSymbol、PolygonSymbol3D、CIMSymbol三种
+        // 详见https://developers.arcgis.com/javascript/latest/api-reference/esri-widgets-Sketch-SketchViewModel.html
+        sketchVM.polygonSymbol = {
+          //符号类型，
+          type: "polygon-3d",
+          symbolLayers: [{
+            //符号图层类型为Symbol3DLayer类型，详见https://developers.arcgis.com/javascript/latest/api-reference/esri-symbols-Symbol3DLayer.html,
+            //全部Symbol3DLayer:ExtrudeSymbol3DLayer , FillSymbol3DLayer , IconSymbol3DLayer , LineSymbol3DLayer , ObjectSymbol3DLayer , PathSymbol3DLayer , TextSymbol3DLayer , WaterSymbol3DLayer
+            //
+            type: "fill",
+            outline: {
+              color: "red"
+            },
+            pattern: {
+              type: "style",
+              //https://developers.arcgis.com/javascript/latest/api-reference/esri-symbols-patterns-StylePattern3D.html#style
+              //见style，共有8种
+              style: "cross"
+            },
+            material: {
+              color: "yellow"
+            }
+          }]
+        };
+        sketchVM.create("polygon");
+        deactivateButtons();
+        // groundBtn.classList.add("esri-button--secondary");
+      });
+      //1.2草地按钮单击事件
+      lawnBtn.addEventListener("click", () => {
+        sketchVM.polygonSymbol = {
+          //符号类型，
+          type: "polygon-3d",
+          symbolLayers: [{
+            //
+            type: "fill",
+            outline: {
+              color: "green"
+            },
+            pattern: {
+              type: "style",
+              style: "horizontal"
+            },
+            material: {
+              color: "green"
+            }
+          }]
+        };
+        sketchVM.create("polygon");
+        deactivateButtons();
+        // lawnBtn.classList.add("esri-button--secondary");
+      });
+      //1.3滩地按钮单击事件
+      beachBtn.addEventListener("click", () => {
+        sketchVM.polygonSymbol = {
+          //符号类型，
+          type: "polygon-3d",
+          symbolLayers: [{
+            //
+            type: "fill",
+            outline: {
+              color: "black"
+            },
+            pattern: {
+              type: "style",
+              style: "forward-diagonal"
+            },
+            material: {
+              color: "blue"
+            }
+          }]
+        };
+        sketchVM.create("polygon");
+        deactivateButtons();
+        // beachBtn.classList.add("esri-button--secondary");
+      });
+      //1.4水面按钮单击事件
+      waterBtn.addEventListener("click", () => {
+        // reference the relative path to the glTF model
+        // in the resource of an ObjectSymbol3DLayer
+        //SketchViewModel,符号类型只有三种属性：pointSymbol、polylineSymbol、polygonSymbol，每一种属性取值又分为多种，如pointSymbol来源有SimpleMarkerSymbol、PointSymbol3D、TextSymbol、CIMSymbol、WebStyleSymbol五种。
+        //https://developers.arcgis.com/javascript/latest/api-reference/esri-widgets-Sketch-SketchViewModel.html
+        sketchVM.polygonSymbol = {
+          type: "polygon-3d",
+          symbolLayers: [{
+            type: "water",
+            waveDirection: 180,
+            color: "Shallow water",
+            waveStrength: "moderate",
+            waterbodySize: "small"
+            //size: 10, // extrude by 10 meters
+            //material: {
+            //color: "#a0b4cf"
+            //}
+          }]
+        };
+        sketchVM.create("polygon");
+        deactivateButtons();
+        // waterBtn.classList.add("esri-button--secondary");
+      });
+      //2.道路
+      //2.1行车道按钮单击事件
+      streetBtn.addEventListener("click", () => {
+        sketchVM.polylineSymbol = {
+          //   //LineSymbol3D,符号类型
+          //   //https://developers.arcgis.com/javascript/latest/api-reference/esri-symbols-LineSymbol3D.html
+          //   //
+          type: "line-3d",
+          symbolLayers: [{
+              type: "line",
+              size: "10px",
+              material: {
+                color: "white"
+              }
+            },
+            {
+              type: "line",
+              size: "3px",
+              material: {
+                color: "blue"
+              }
+            }
+          ]
+        };
+        //绘制polyline
+        sketchVM.create("polyline");
+        deactivateButtons();
+        // streetBtn.classList.add("esri-button--secondary");
+      });
+      //2.2人行道按钮单击事件
+      walkingpathBtn.addEventListener("click", () => {
+        sketchVM.polylineSymbol = {
+          //   //LineSymbol3D,符号类型
+          //   //https://developers.arcgis.com/javascript/latest/api-reference/esri-symbols-LineSymbol3D.html
+          //
+          type: "line-3d",
+          symbolLayers: [{
+              type: "line",
+              size: "8px",
+              material: {
+                color: "red"
+              }
+            },
+            {
+              type: "line",
+              size: "2px",
+              material: {
+                color: "green"
+              }
+            }
+          ]
+        };
+        //绘制polyline
+        sketchVM.create("polyline");
+        deactivateButtons();
+        // walkingpathBtn.classList.add("esri-button--secondary");
+      });
+      //3.建筑
+      //3.1教学楼按钮单击事件
+      academicbuildingBtn.addEventListener("click", () => {
+        // SketchViewModel,草图工具的绘图符号类型只有三种：pointSymbol、polylineSymbol、polygonSymbol，对每一种绘图符号，需要再指定具体的绘制符号。
+        // 如pointSymbol类型有SimpleMarkerSymbol、PointSymbol3D、TextSymbol、CIMSymbol、WebStyleSymbol五种。
+        // polylineSymbol类型有SimpleLineSymbol、LineSymbol3D、CIMSymbol三种
+        // polygonSymbol类型有SimpleFillSymbol、PolygonSymbol3D、CIMSymbol三种
+        // 详见https://developers.arcgis.com/javascript/latest/api-reference/esri-widgets-Sketch-SketchViewModel.html
+        sketchVM.polygonSymbol = {
+          //符号类型，
+          type: "polygon-3d",
+          symbolLayers: [{
+            //符号图层类型为ExtrudeSymbol3DLayer类型，从地面向上拉伸的体元素，表示建筑轮廓。
+            //详见https://developers.arcgis.com/javascript/latest/api-reference/esri-symbols-ExtrudeSymbol3DLayer.html,
+            type: "extrude",
+            //中学、中师、幼师教室：每层净高3.40米。6层20.4米
+            size: 20.4,
+            material: {
+              color: "dodgerblue"
+            },
+            edges: {
+              type: "solid",
+              size: "3px",
+              color: "blue"
+            }
+          }]
+        };
+        sketchVM.create("polygon");
+        deactivateButtons();
+        // academicbuildingBtn.classList.add("esri-button--secondary");
+      });
+      //3.2图书馆楼按钮单击事件
+      libraryBtn.addEventListener("click", () => {
+        // SketchViewModel,草图工具的绘图符号类型只有三种：pointSymbol、polylineSymbol、polygonSymbol，对每一种绘图符号，需要再指定具体的绘制符号。
+        // 如pointSymbol类型有SimpleMarkerSymbol、PointSymbol3D、TextSymbol、CIMSymbol、WebStyleSymbol五种。
+        // polylineSymbol类型有SimpleLineSymbol、LineSymbol3D、CIMSymbol三种
+        // polygonSymbol类型有SimpleFillSymbol、PolygonSymbol3D、CIMSymbol三种
+        // 详见https://developers.arcgis.com/javascript/latest/api-reference/esri-widgets-Sketch-SketchViewModel.html
+        sketchVM.polygonSymbol = {
+          //符号类型，
+          type: "polygon-3d",
+          symbolLayers: [{
+            //符号图层类型为ExtrudeSymbol3DLayer类型，从地面向上拉伸的体元素，表示建筑轮廓。
+            //详见https://developers.arcgis.com/javascript/latest/api-reference/esri-symbols-ExtrudeSymbol3DLayer.html,
+            type: "extrude",
+            //图书馆每层净高3.1-3.50米。7层24.5米
+            size: 24.5,
+            material: {
+              color: "pink"
+            },
+            edges: {
+              //线型
+              type: "solid",
+              size: "3px",
+              color: "blue"
+            }
+          }]
+        };
+        sketchVM.create("polygon");
+        deactivateButtons();
+        // libraryBtn.classList.add("esri-button--secondary");
+      });
+      //3.3体育馆楼按钮单击事件
+      gymnasiumBtn.addEventListener("click", () => {
+        // SketchViewModel,草图工具的绘图符号类型只有三种：pointSymbol、polylineSymbol、polygonSymbol，对每一种绘图符号，需要再指定具体的绘制符号。
+        // 如pointSymbol类型有SimpleMarkerSymbol、PointSymbol3D、TextSymbol、CIMSymbol、WebStyleSymbol五种。
+        // polylineSymbol类型有SimpleLineSymbol、LineSymbol3D、CIMSymbol三种
+        // polygonSymbol类型有SimpleFillSymbol、PolygonSymbol3D、CIMSymbol三种
+        // 详见https://developers.arcgis.com/javascript/latest/api-reference/esri-widgets-Sketch-SketchViewModel.html
+        sketchVM.polygonSymbol = {
+          //符号类型，
+          type: "polygon-3d",
+          symbolLayers: [{
+            //符号图层类型为ExtrudeSymbol3DLayer类型，从地面向上拉伸的体元素，表示建筑轮廓。
+            //详见https://developers.arcgis.com/javascript/latest/api-reference/esri-symbols-ExtrudeSymbol3DLayer.html,
+            type: "extrude",
+            //排球场：国际排联的要求，不低于12.5m。羽毛球场：国际标准是9m，部分场地会达到10m。篮球场：最标准的是12m如果是单独的篮球场，一般也就是5m左右,
+            size: 12.5,
+            material: {
+              //颜色命名：https://www.w3.org/wiki/CSS/Properties/color/keywords
+              color: "aqua"
+            },
+            edges: {
+              //线型Edges3D，详见https://developers.arcgis.com/javascript/latest/api-reference/esri-symbols-edges-Edges3D.html，有sketch，"solid"两种
+              type: "solid",
+              size: "3px",
+              color: "beige"
+            }
+          }]
+        };
+        sketchVM.create("polygon");
+        deactivateButtons();
+        // gymnasiumBtn.classList.add("esri-button--secondary");
+      });
+      //3.4宿舍楼按钮单击事件
+      dormitoryBtn.addEventListener("click", () => {
+        // SketchViewModel,草图工具的绘图符号类型只有三种：pointSymbol、polylineSymbol、polygonSymbol，对每一种绘图符号，需要再指定具体的绘制符号。
+        // 如pointSymbol类型有SimpleMarkerSymbol、PointSymbol3D、TextSymbol、CIMSymbol、WebStyleSymbol五种。
+        // polylineSymbol类型有SimpleLineSymbol、LineSymbol3D、CIMSymbol三种
+        // polygonSymbol类型有SimpleFillSymbol、PolygonSymbol3D、CIMSymbol三种
+        // 详见https://developers.arcgis.com/javascript/latest/api-reference/esri-widgets-Sketch-SketchViewModel.html
+        sketchVM.polygonSymbol = {
+          //符号类型，
+          type: "polygon-3d",
+          symbolLayers: [{
+            //符号图层类型为ExtrudeSymbol3DLayer类型，从地面向上拉伸的体元素，表示建筑轮廓。
+            //详见https://developers.arcgis.com/javascript/latest/api-reference/esri-symbols-ExtrudeSymbol3DLayer.html,
+            type: "extrude",
+            //宿舍层高3.60m,5层
+            size: 18,
+            material: {
+              //颜色命名：https://www.w3.org/wiki/CSS/Properties/color/keywords
+              color: "chocolate"
+            },
+            edges: {
+              //线型Edges3D，详见https://developers.arcgis.com/javascript/latest/api-reference/esri-symbols-edges-Edges3D.html，有sketch，"solid"两种
+              type: "solid",
+              size: "3px",
+              color: "beige"
+            }
+          }]
+        };
+        sketchVM.create("polygon");
+        deactivateButtons();
+        // dormitoryBtn.classList.add("esri-button--secondary");
+      });
+      //4.设施，用WebStyleSymbol点状符号，只选择部符号
+      //4.1公交站
+        // SketchViewModel,草图工具的绘图符号类型只有三种：pointSymbol、polylineSymbol、polygonSymbol，对每一种绘图符号，需要再指定具体的绘制符号。
+        // 如pointSymbol类型有SimpleMarkerSymbol、PointSymbol3D、TextSymbol、CIMSymbol、WebStyleSymbol五种。
+        // polylineSymbol类型有SimpleLineSymbol、LineSymbol3D、CIMSymbol三种
+        // polygonSymbol类型有SimpleFillSymbol、PolygonSymbol3D、CIMSymbol三种
+        // 详见https://developers.arcgis.com/javascript/latest/api-reference/esri-widgets-Sketch-SketchViewModel.html
+          //符号类型，
+          //符号图层类型为WebStyleSymbol中的Esri Web Style Symbols (3D)类型。
+            //WebStyleSymbol详见https://developers.arcgis.com/javascript/latest/api-reference/esri-symbols-WebStyleSymbol.html,
+            //Esri Web Style Symbols (3D)详见https://developers.arcgis.com/javascript/latest/visualization/symbols-color-ramps/esri-web-style-symbols-3d/#icons
+        busBtn.addEventListener("click", () => {
+          sketchVM.pointSymbol = {
+            type: "web-style",
+            name: "Flag",
+            styleName: "EsriIconsStyle"
+        };
+        //   type: "point-3d",
+        //   symbolLayers: [{
+        //     type: "object",
+        //     size: 3,
+        //     anchor: "bottom",
+        //     resource: {
+        //       href: "https://static.arcgis.com/arcgis/styleItems/RealisticTransportation/web/resource/Bobcat.json",
+        //     }
+        //   }]
+        // };
+        sketchVM.create("point");
+        deactivateButtons();
+      });
+        //
+        shoppingBtn.addEventListener("click", () => {
+          sketchVM.pointSymbol = {
+            type: "web-style",
+            name: "Shopping",
+            styleName: "EsriIconsStyle"
+        };
+        sketchVM.create("point");
+        deactivateButtons();
+      });
+        //
+        hospitalBtn.addEventListener("click", () => {
+          sketchVM.pointSymbol = {
+            type: "web-style",
+            name: "House",
+            styleName: "EsriIconsStyle"
+        };
+        sketchVM.create("point");
+        deactivateButtons();
+      });
+        //
+        parkingBtn.addEventListener("click", () => {
+          sketchVM.pointSymbol = {
+            type: "web-style",
+            name: "Parking",
+            styleName: "EsriIconsStyle"
+        };
+        sketchVM.create("point");
+        deactivateButtons();
+      });
+        //
+        restaurantBtn.addEventListener("click", () => {
+          sketchVM.pointSymbol = {
+            type: "web-style",
+            name: "Restaurant",
+            styleName: "EsriIconsStyle"
+        };
+        sketchVM.create("point");
+        deactivateButtons();
+      });
+        //
+        restroomBtn.addEventListener("click", () => {
+          sketchVM.pointSymbol = {
+            type: "web-style",
+            name: "Restroom",
+            styleName: "EsriIconsStyle"
+        };
+        sketchVM.create("point");
+        deactivateButtons();
+      });
+        //
+        landmarkBtn.addEventListener("click", () => {
+          sketchVM.pointSymbol = {
+            type: "web-style",
+            name: "Landmark",
+            styleName: "EsriIconsStyle"
+        };
+        sketchVM.create("point");
+        deactivateButtons();
+      });
+        //
+        sportBtn.addEventListener("click", () => {
+          sketchVM.pointSymbol = {
+            type: "web-style",
+            name: "Playground",
+            styleName: "EsriIconsStyle"
+        };
+        sketchVM.create("point");
+        deactivateButtons();
+      });
+      //5.树木
+      //,Infrastructure、Recreation、Schematic Vegetation、Signs and Signals、Street Scene、Transportation、Vegetation,符号，只有有JSON数据就可以显示出来。ok
+      //参考资料地址：//https://developers.arcgis.com/javascript/latest/visualization/symbols-color-ramps/esri-web-style-symbols-3d/#infrastructure
+      //对于Vegetation符号，引用时采用如下示例应用：type: "web-style", name: "Phyllostachys", styleName: "EsriRealisticTreesStyle"。这种方式不能改变符号大小。
+      //5.1向日葵
+      tree1Btn.addEventListener("click", () => {
+        sketchVM.pointSymbol = {
+          type: "web-style",
+          name: "Helianthus",
+          styleName: "EsriRealisticTreesStyle"
+        };
+        sketchVM.create("point");
+        //alert("ok");
+        deactivateButtons();
+      });
+      //5.2松树
+      tree2Btn.addEventListener("click", () => {
+        sketchVM.pointSymbol = {
+          type: "web-style",
+          name: "Calocedrus",
+          styleName: "EsriRealisticTreesStyle"
+        };
+        sketchVM.create("point");
+        deactivateButtons();
+      });
+      //5.3竹子
+      tree3Btn.addEventListener("click", () => {
+        sketchVM.pointSymbol = {
+          type: "web-style",
+          name: "Phyllostachys",
+          styleName: "EsriRealisticTreesStyle"
+        };
+        sketchVM.create("point");
+        //alert("ok");
+        deactivateButtons();
+      });
+    // 5.4杨树
+    tree4Btn.addEventListener("click", () => {
+        sketchVM.pointSymbol = {
+          type: "web-style",
+          name: "Tilia",
+          styleName: "EsriRealisticTreesStyle"
+        };
+        sketchVM.create("point");
+        //alert("ok");
+        deactivateButtons();
+      });
+    // 5.5梧桐
+    tree5Btn.addEventListener("click", () => {
+        sketchVM.pointSymbol = {
+          type: "web-style",
+          name: "Platanus",
+          styleName: "EsriRealisticTreesStyle"
+        };
+        sketchVM.create("point");
+        //alert("ok");
+        deactivateButtons();
+      });
+    // 5.6槐树
+    tree6Btn.addEventListener("click", () => {
+        sketchVM.pointSymbol = {
+          type: "web-style",
+          name: "Platanus",
+          styleName: "EsriRealisticTreesStyle"
+        };
+        sketchVM.create("point");
+        //alert("ok");
+        deactivateButtons();
+      });
+    // 5.7银杏
+    tree7Btn.addEventListener("click", () => {
+        sketchVM.pointSymbol = {
+          type: "web-style",
+          name: "Prunus",
+          styleName: "EsriRealisticTreesStyle"
+        };
+        sketchVM.create("point");
+        //alert("ok");
+        deactivateButtons();
+      });
+    // 5.8柿树
+    tree8Btn.addEventListener("click", () => {
+        sketchVM.pointSymbol = {
+          type: "web-style",
+          name: "Larix",
+          styleName: "EsriRealisticTreesStyle"
+        };
+        sketchVM.create("point");
+        //alert("ok");
+        deactivateButtons();
+      });
+    
+    //6.1车
+    car1Btn.addEventListener("click", () => {
+        sketchVM.pointSymbol = {
+          type: "web-style",
+          name: "Audi_A6",
+          styleName: "EsriRealisticTransportationStyle"
+        };
+        sketchVM.create("point");
+        deactivateButtons();
+        car1Btn.classList.add("esri-button--secondary");
+      });
+      car2Btn.addEventListener("click", () => {
+        sketchVM.pointSymbol = {
+          type: "web-style",
+          name: "BMW_3-Series",
+          styleName: "EsriRealisticTransportationStyle"
+        };
+        sketchVM.create("point");
+  
+        deactivateButtons();
+        car2Btn.classList.add("esri-button--secondary");
+      });
+      car3Btn.addEventListener("click", () => {
+        sketchVM.pointSymbol = {
+          type: "web-style",
+          name: "Ford_Edge",
+          styleName: "EsriRealisticTransportationStyle"
+        };
+        sketchVM.create("point");
+      
+        deactivateButtons();
+        car3Btn.classList.add("esri-button--secondary");
+      });
+      car4Btn.addEventListener("click", () => {
+        sketchVM.pointSymbol = {
+          type: "web-style",
+          name: "Ford_Transit_Commercial_Van",
+          styleName: "EsriRealisticTransportationStyle"
+        };
+        sketchVM.create("point");
+       
+        deactivateButtons();
+        car4Btn.classList.add("esri-button--secondary");
+      });
+      car5Btn.addEventListener("click", () => {
+        sketchVM.pointSymbol = {
+          type: "web-style",
+          name: "Mountain_Bike",
+          styleName: "EsriRealisticTransportationStyle"
+        };
+        sketchVM.create("point");
+        
+        deactivateButtons();
+        car5Btn.classList.add("esri-button--secondary");
+      });
+      car6Btn.addEventListener("click", () => {
+        sketchVM.pointSymbol = {
+          type: "web-style",
+          name: "Porsche_Carrera",
+          styleName: "EsriRealisticTransportationStyle"
+        };
+        sketchVM.create("point");
+     
+        deactivateButtons();
+        car6Btn.classList.add("esri-button--secondary");
+      });
+    });
+  </script>
+</head>
+
+<body>
+  <calcite-loader></calcite-loader>
+  <calcite-shell content-behind hidden>
+    <h2 id="header-title" slot="header">
+      交互式校园规划系统 V0
+    </h2>
+
+    <calcite-shell-panel slot="panel-start" detached>
+      <calcite-action-bar slot="action-bar">
+        <calcite-action data-action-id="newplan" icon="add-in-new" text="新规划"></calcite-action>
+        <calcite-action data-action-id="ground" icon="overview" text="地表"></calcite-action>
+        <calcite-action data-action-id="road" icon="line" text="道路"></calcite-action>
+        <calcite-action data-action-id="buildings" icon="urban-model" text="建筑"></calcite-action>
+        <calcite-action data-action-id="icons" icon="pin-tear" text="设施"></calcite-action>
+        <calcite-action data-action-id="trees" icon="pushpin" text="树木"></calcite-action>
+        <calcite-action data-action-id="cars" icon="car" text="车辆"></calcite-action>
+        <calcite-action data-action-id="submitplan" icon="submit" text="提交规划"></calcite-action>
+        <calcite-action data-action-id="submitplan" icon="collection" text="幻灯片"></calcite-action>
+      </calcite-action-bar>
+
+      <!-- Map-specific panels (each one provides a div for a ArcGIS Maps SDK for JavaScript widget) -->
+      <calcite-panel heading="图层" height-scale="l" data-panel-id="layers" hidden>
+        <div id="layers-container"></div>
+      </calcite-panel>
+      <calcite-panel heading="底图库" height-scale="l" data-panel-id="basemaps" hidden>
+        <div id="basemaps-container"></div>
+      </calcite-panel>
+      <calcite-panel heading="图例" height-scale="l" data-panel-id="legend" hidden>
+        <div id="legend-container"></div>
+      </calcite-panel>
+      <calcite-panel heading="书签" height-scale="l" data-panel-id="bookmarks" hidden>
+        <div id="bookmarks-container"></div>
+      </calcite-panel>
+      <calcite-panel heading="打印" height-scale="l" data-panel-id="print" hidden>
+        <div id="print-container"></div>
+      </calcite-panel>
+
+      <!-- ground symbols 显示地表符号界面-->
+      <calcite-panel heading="地表" data-panel-id="ground" hidden>
+        <div id="ground-icons">
+          <br />
+          <calcite-button id="groundsur" data-type="polygon" kind="neutral" icon-start="3d-glasses" round>地面</calcite-button><br /><br />
+          <calcite-button id="lawn" data-type="polygon" kind="neutral" icon-start="3d-glasses" round>草坪</calcite-button><br /><br />
+          <calcite-button id="beach" data-type="polygon" kind="neutral" icon-start="3d-glasses" round>滩地</calcite-button><br /><br />
+          <calcite-button id="water" data-type="polygon" kind="neutral" icon-start="3d-glasses" round>水面</calcite-button>
+        </div>
+      </calcite-panel>
+
+      <!-- path symbols 显示道路符号界面-->
+      <calcite-panel heading="道路" data-panel-id="road" hidden>
+        <div id="road-icons">
+          <br />
+          <calcite-button id="street" data-type="polyline" kind="neutral" icon-start="3d-glasses" round>行车道</calcite-button><br /><br />
+          <calcite-button id="walkingpath" data-type="polyline" kind="neutral" icon-start="3d-glasses" round>人行道</calcite-button><br /><br />
+        </div>
+      </calcite-panel>
+
+      <!-- building symbols 显示建筑符号界面-->
+      <calcite-panel heading="建筑" data-panel-id="buildings" hidden>
+        <div id="buildings-icons">
+          <br />
+          <calcite-button id="academicbuilding" data-type="polyline" kind="neutral" icon-start="3d-glasses" round>教学楼</calcite-button><br /><br />
+          <calcite-button id="library" data-type="polyline" kind="neutral" icon-start="3d-glasses" round>图书馆</calcite-button><br /><br />
+          <calcite-button id="gymnasium" data-type="polyline" kind="neutral" icon-start="3d-glasses" round>体育馆</calcite-button><br /><br />
+          <calcite-button id="dormitory" data-type="polyline" kind="neutral" icon-start="3d-glasses" round>宿舍</calcite-button><br /><br />
+        </div>
+      </calcite-panel>
+
+      <!-- iconssymbols 显示图标符号界面-->
+      <calcite-panel heading="设施" data-panel-id="icons" hidden>
+        <div id="icons">
+          <br />
+          <calcite-button id="bus" data-type="point" kind="neutral" icon-start="3d-glasses" round>公交站</calcite-button><br /><br />
+          <calcite-button id="shopping" data-type="point" kind="neutral" icon-start="3d-glasses" round>商店</calcite-button><br /><br />
+          <calcite-button id="hospital" data-type="point" kind="neutral" icon-start="3d-glasses" round>医院</calcite-button><br /><br />
+          <calcite-button id="parking" data-type="point" kind="neutral" icon-start="3d-glasses" round>停车场</calcite-button><br /><br />
+          <calcite-button id="restaurant" data-type="point" kind="neutral" icon-start="3d-glasses" round>餐厅</calcite-button><br /><br />
+          <calcite-button id="restroom" data-type="point" kind="neutral" icon-start="3d-glasses" round>洗手间</calcite-button><br /><br />
+          <calcite-button id="landmark" data-type="point" kind="neutral" icon-start="3d-glasses" round>景点</calcite-button><br /><br />
+          <calcite-button id="sport" data-type="point" kind="neutral" icon-start="3d-glasses" round>健身</calcite-button><br /><br />
+        </div>
+      </calcite-panel>
+      <!--  WebStyleSymbol类型符号，显示Esri Web Style Symbols (3D)符号中的树木符号-->
+      <calcite-panel heading="树木" data-panel-id="trees" hidden>
+        <div id="trees-icons">
+          <br />
+          <calcite-button id="tree1" data-type="point" kind="neutral" icon-start="3d-glasses" round>向日葵</calcite-button><br /><br />
+          <calcite-button id="tree2" data-type="point" kind="neutral" icon-start="3d-glasses" round>松树</calcite-button><br /><br />
+          <calcite-button id="tree3" data-type="point" kind="neutral" icon-start="3d-glasses" round>竹子</calcite-button><br /><br />
+          <calcite-button id="tree4" data-type="point" kind="neutral" icon-start="3d-glasses" round>杨树</calcite-button><br /><br />
+          <calcite-button id="tree5" data-type="point" kind="neutral" icon-start="3d-glasses" round>梧桐</calcite-button><br /><br />
+          <calcite-button id="tree6" data-type="point" kind="neutral" icon-start="3d-glasses" round>槐树</calcite-button><br /><br />
+          <calcite-button id="tree7" data-type="point" kind="neutral" icon-start="3d-glasses" round>银杏</calcite-button><br /><br />
+          <calcite-button id="tree8" data-type="point" kind="neutral" icon-start="3d-glasses" round>柿树</calcite-button><br /><br />
+        </div>
+      </calcite-panel>
+      <calcite-panel heading="车辆" data-panel-id="cars" hidden>
+        <div id="cars-icons">
+          <br />
+          <calcite-button id="car1" data-type="point" kind="neutral" icon-start="3d-glasses" round>轿车</calcite-button><br /><br />
+          <calcite-button id="car2" data-type="point" kind="neutral" icon-start="3d-glasses" round>面包车</calcite-button><br /><br />
+          <calcite-button id="car3" data-type="point" kind="neutral" icon-start="3d-glasses" round>商务车</calcite-button><br /><br />
+          <calcite-button id="car4" data-type="point" kind="neutral" icon-start="3d-glasses" round>公路自行车</calcite-button><br /><br />
+          <calcite-button id="car5" data-type="point" kind="neutral" icon-start="3d-glasses" round>皮卡</calcite-button><br /><br />
+          <calcite-button id="car6" data-type="point" kind="neutral" icon-start="3d-glasses" round>大巴</calcite-button><br /><br />
+          
+        </div>
+      </calcite-panel>
+      <!-- Info panel (populates with info from the web map) -->
+      <calcite-panel heading="细节" data-panel-id="information" hidden>
+        <div id="info-content">
+          <img id="item-thumbnail" alt="webmap thumbnail" />
+          <div id="item-description">
+            <!-- Dynamically populated -->
+          </div>
+          <calcite-label layout="inline">
+            <b>评分:</b>
+            <calcite-rating id="item-rating" read-only>
+              <!-- Dynamically populated -->
+            </calcite-rating>
+          </calcite-label>
+        </div>
+      </calcite-panel>
+    </calcite-shell-panel>
+    <div id="viewDiv"></div>
+  </calcite-shell>
+</body>
+
+</html>
